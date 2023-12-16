@@ -1,5 +1,8 @@
-﻿namespace ProCrew_Assignment.Models
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace ProCrew_Assignment.Models
 {
+    [Index (nameof(Name),nameof(Price),nameof(Quantity),IsUnique =true)]
     public class Product
     {
         public int Id { get; set; }

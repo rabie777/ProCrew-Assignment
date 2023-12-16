@@ -1,7 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
+using ProCrew_Assignment.DTO;
 using ProCrew_Assignment.Helper;
 using ProCrew_Assignment.Interfaces;
 using ProCrew_Assignment.Models;
+using ProCrew_Assignment.Services;
+using System.Text.Json;
 
 namespace ProCrew_Assignment.Controllers
 {
@@ -9,13 +13,17 @@ namespace ProCrew_Assignment.Controllers
     [ApiController]
     public class ProductsController : ControllerBase
     {
-        private readonly IProduct _Product; 
+        private readonly IProduct _Product;
+        private readonly AuditService _auditService;
+        private readonly IMapper _mapper;
 
-        public ProductsController(IProduct product)
+        public ProductsController(IProduct product,AuditService auditService, IMapper mapper)
         {
             _Product = product;
-            
+            _auditService = auditService;
+            _mapper = mapper;
         }
+
 
         #region GetProducts
 
@@ -82,18 +90,36 @@ namespace ProCrew_Assignment.Controllers
         #region Create
         [HttpPost]
         [Route("~/api/[controller]/CreateProduct")]
-        public async Task<IActionResult> CreateProduct(Product obj)
+        public async Task<IActionResult> CreateProduct(ProductDto obj)
         {
+             
             try
             {
-                var result = await _Product.CreateProduct(obj);
-                return Ok(new APIResponses<Product>()
+
+                if (ModelState.IsValid)
                 {
-                    Code = 200,
-                    status = "Ok",
-                    Message = "Data product added successfully",
-                    Data = result
+
+                    var model = _mapper.Map<Product>(obj);
+                    var result = await _Product.CreateProduct(model);
+                    _auditService.LogAuditAsync("Products", model.Id, "CREATE", null, JsonSerializer.Serialize(model));
+
+                    return Ok(new APIResponses<Product>()
+                    {
+                        Code = 200,
+                        status = "Ok",
+                        Message = "Data product added successfully",
+                        Data = result
+                    });
+                }
+
+                return BadRequest(new APIResponses<string>()
+                {
+                    Code = 400,
+                    status = "Bad Request",
+                    Message = "Validation Error"
                 });
+
+
             }
             catch (Exception ex)
             {
@@ -103,7 +129,7 @@ namespace ProCrew_Assignment.Controllers
                     status = "Not Found",
                     Message = "Data Not Added",
                     Data = ex.Message
-                });
+                }); 
             }
              
         }
